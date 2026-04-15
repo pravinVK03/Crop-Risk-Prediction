@@ -1,0 +1,47 @@
+{
+  "num_samples_test": 47231,
+  "accuracy": 0.9927378204992484,
+  "precision": 0.9927629709024567,
+  "recall": 0.9927378204992484,
+  "f1_score": 0.9927412311712875,
+  "roc_auc": 0.9998732994501364,
+  "confusion_matrix": [
+    [
+      16006,
+      48,
+      0
+    ],
+    [
+      62,
+      15456,
+      55
+    ],
+    [
+      0,
+      178,
+      15426
+    ]
+  ],
+  "confusion_matrix_labels": [
+    "LOW",
+    "MEDIUM",
+    "HIGH"
+  ],
+  "contingency_table_actual_vs_predicted": {
+    "LOW": {
+      "LOW": 16006,
+      "MEDIUM": 48,
+      "HIGH": 0
+    },
+    "MEDIUM": {
+      "LOW": 62,
+      "MEDIUM": 15456,
+      "HIGH": 55
+    },
+    "HIGH": {
+      "LOW": 0,
+      "MEDIUM": 178,
+      "HIGH": 15426
+    }
+  }
+}
