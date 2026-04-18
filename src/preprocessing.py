@@ -11,9 +11,12 @@ from src.config import CATEGORICAL, FEATURES, NUMERICAL, TARGET
 class TabularPreprocessor:
     def __init__(self):
         self.category_maps: dict[str, dict[str, int]] = {}
+        self.category_modes: dict[str, str] = {}
         self.target_to_index: dict[int, int] = {}
         self.index_to_target: dict[int, int] = {}
         self.numeric_medians: dict[str, float] = {}
+        self.numeric_means: dict[str, float] = {}
+        self.numeric_stds: dict[str, float] = {}
         self.location_profiles: dict[tuple[str, str], dict[str, float]] = {}
         self.state_profiles: dict[str, dict[str, float]] = {}
         self.season_by_loc_crop: dict[tuple[str, str, str], str] = {}
@@ -26,8 +29,15 @@ class TabularPreprocessor:
             values = sorted(frame[column].astype(str).str.lower().unique().tolist())
             # Keep 0 for unknown categories from API payloads.
             self.category_maps[column] = {value: idx + 1 for idx, value in enumerate(values)}
+            mode = frame[column].astype(str).str.lower().mode()
+            self.category_modes[column] = str(mode.iloc[0]) if not mode.empty else "unknown"
 
         self.numeric_medians = {column: float(frame[column].median()) for column in NUMERICAL}
+        self.numeric_means = {column: float(frame[column].mean()) for column in NUMERICAL}
+        self.numeric_stds = {}
+        for column in NUMERICAL:
+            std = float(frame[column].std(ddof=0))
+            self.numeric_stds[column] = std if std > 1e-8 else 1.0
 
         grouped = frame.groupby(["state", "district"], dropna=False)[NUMERICAL].median()
         for (state, district), row in grouped.iterrows():
@@ -70,6 +80,10 @@ class TabularPreprocessor:
 
     def transform(self, frame: pd.DataFrame, with_target: bool = True):
         encoded = frame.copy()
+        if not hasattr(self, "numeric_means"):
+            self.numeric_means = {column: 0.0 for column in NUMERICAL}
+        if not hasattr(self, "numeric_stds"):
+            self.numeric_stds = {column: 1.0 for column in NUMERICAL}
 
         for column in CATEGORICAL:
             mapping = self.category_maps[column]
@@ -79,8 +93,14 @@ class TabularPreprocessor:
 
         for column in NUMERICAL:
             encoded[column] = pd.to_numeric(encoded[column], errors="coerce").fillna(self.numeric_medians[column])
+            mean = float(self.numeric_means.get(column, 0.0))
+            std = float(self.numeric_stds.get(column, 1.0))
+            if abs(std) < 1e-8:
+                std = 1.0
+            encoded[column] = (encoded[column] - mean) / std
 
         x = encoded[FEATURES].values.astype(np.float32)
+        x = np.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
 
         if not with_target:
             return x, None

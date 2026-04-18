@@ -1,17 +1,20 @@
 from dataclasses import dataclass
 
 import numpy as np
-from pytorch_tabnet.tab_model import TabNetClassifier
+import torch
 
-from src.config import FEATURES, MODEL_PATH, PREPROCESSOR_PATH
+from src.config import CATEGORICAL, FEATURES, MODEL_PATH, PREPROCESSOR_PATH
 from src.explain import explain_prediction, recommend_precautions
 from src.preprocessing import TabularPreprocessor
+from src.tab_transformer.config import ModelConfig
+from src.tab_transformer.model import TabTransformerClassifier
 
 
 @dataclass
 class ModelBundle:
-    model: TabNetClassifier
+    model: TabTransformerClassifier
     preprocessor: TabularPreprocessor
+    checkpoint_meta: dict
 
 
 def _risk_label_from_raw(raw_target) -> str:
@@ -20,16 +23,36 @@ def _risk_label_from_raw(raw_target) -> str:
 
 
 def load_model() -> ModelBundle:
-    model = TabNetClassifier()
-    model.load_model(MODEL_PATH)
+    checkpoint = torch.load(MODEL_PATH, map_location="cpu")
+    model_cfg = ModelConfig(**checkpoint["model_config"])
+    model = TabTransformerClassifier(
+        cat_cardinalities=checkpoint["cat_cardinalities"],
+        num_features=checkpoint["num_features"],
+        num_classes=checkpoint["num_classes"],
+        config=model_cfg,
+    )
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
     preprocessor = TabularPreprocessor.load(PREPROCESSOR_PATH)
-    return ModelBundle(model=model, preprocessor=preprocessor)
+    return ModelBundle(model=model, preprocessor=preprocessor, checkpoint_meta=checkpoint)
+
+
+def predict_batch(bundle: ModelBundle, frame):
+    x, _ = bundle.preprocessor.transform(frame, with_target=False)
+    x_cat = torch.from_numpy(x[:, : len(CATEGORICAL)].astype(np.int64))
+    x_num = torch.from_numpy(x[:, len(CATEGORICAL) :].astype(np.float32))
+
+    with torch.no_grad():
+        logits = bundle.model(x_cat, x_num)
+        probabilities = torch.softmax(logits, dim=1).cpu().numpy()
+        pred_indices = probabilities.argmax(axis=1)
+    return pred_indices, probabilities
 
 
 def predict(bundle: ModelBundle, sample_df):
-    encoded_x, _ = bundle.preprocessor.transform(sample_df, with_target=False)
-    prediction_index = int(bundle.model.predict(encoded_x)[0])
-    prediction_proba = bundle.model.predict_proba(encoded_x)[0]
+    pred_indices, probabilities = predict_batch(bundle, sample_df)
+    prediction_index = int(pred_indices[0])
+    prediction_proba = probabilities[0]
 
     raw_target = bundle.preprocessor.index_to_target[prediction_index]
     risk_label = _risk_label_from_raw(raw_target)
@@ -39,11 +62,10 @@ def predict(bundle: ModelBundle, sample_df):
         class_probabilities[_risk_label_from_raw(raw_class)] = float(prediction_proba[class_index])
 
     reasons = explain_prediction(
-        model=bundle.model,
-        preprocessor=bundle.preprocessor,
-        encoded_x=encoded_x,
+        bundle=bundle,
         raw_frame=sample_df,
         features=FEATURES,
+        pred_index=prediction_index,
         top_k=5,
     )
     precautions = recommend_precautions(risk_label=risk_label, reasons=reasons)
@@ -53,8 +75,8 @@ def predict(bundle: ModelBundle, sample_df):
         "risk_label": risk_label,
         "confidence": confidence,
         "class_probabilities": class_probabilities,
-        "explanation_method": "TabNet local feature attribution (per-sample), ranked by influence magnitude.",
-        "explanation_note": "Higher contribution means stronger influence on this prediction; directionality is interpreted using value vs location reference.",
+        "explanation_method": "TabTransformer perturbation-based local attribution (feature replacement against location/historical references).",
+        "explanation_note": "Contribution is measured by how much predicted-class probability changes when one feature is replaced with its reference value.",
         "reasons": reasons,
         "precautions": precautions,
     }

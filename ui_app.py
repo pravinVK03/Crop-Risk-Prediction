@@ -44,7 +44,7 @@ def get_dropdown_options(bundle):
 def main():
     st.set_page_config(page_title="Crop Risk Inference", page_icon="🌾", layout="centered")
     st.title("Crop Risk Inference")
-    st.caption("TabNet inference with real-time inputs. Use dropdowns or manual input.")
+    st.caption("TabTransformer inference with real-time inputs. Use dropdowns or manual input.")
 
     try:
         bundle = get_bundle()
@@ -153,7 +153,8 @@ def main():
                 "reference_value": item["reference_value"],
                 "reference_source": item["reference_source"],
                 "influence_%": round(item["contribution_pct"], 2),
-                "influence_score": round(item["contribution"], 6),
+                "influence_score": round(item.get("abs_contribution", abs(item["contribution"])), 6),
+                "signed_effect": round(item["contribution"], 6),
                 "explanation": item["reason"],
             }
         )

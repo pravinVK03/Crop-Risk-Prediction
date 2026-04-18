@@ -1,5 +1,4 @@
-from .config import DEFAULT_CONFIG
-from .inference import predict
-from .trainer import train_pipeline
+from .config import ModelConfig
+from .model import TabTransformerClassifier
 
-__all__ = ["DEFAULT_CONFIG", "predict", "train_pipeline"]
+__all__ = ["ModelConfig", "TabTransformerClassifier"]

@@ -1,35 +1,8 @@
-# Tabular Crop Risk (TabNet)
+# Crop Risk Prediction Framework (TabTransformer Only)
 
-This implementation covers only the tabular branch: crop production + soil properties + location + season.
-The model is `TabNetClassifier` and returns:
-- risk class (`LOW`, `MEDIUM`, `HIGH`)
-- top explainable reasons (feature contributions)
-- precaution recommendations
+This repository is now preserved as a tabular-only crop risk system using `TabTransformer`.
 
-Training uses historical crop production and soil records (`Dataset_Z.csv`).
-Inference is real-time friendly: you can provide only crop + location, and the system infers season and soil/production defaults from historical profiles for that location.
-
-## Structure
-
-```text
-Agri_Data/
-  data/processed/Dataset_Z.csv
-  models/tabnet/
-    crop_risk_tabnet.zip
-    preprocessor.pkl
-    metrics.json
-  src/
-    config.py
-    data_loader.py
-    preprocessing.py
-    train.py
-    predict.py
-    explain.py
-  main.py
-  requirements.txt
-```
-
-## Run
+## Quick Start
 
 1. Install dependencies:
 
@@ -37,60 +10,48 @@ Agri_Data/
 pip install -r requirements.txt
 ```
 
-2. Train and run sample inference:
-
-```powershell
-python main.py
-```
-
-Or run them separately:
+2. Train model:
 
 ```powershell
 python run_train.py
-python run_infer.py --state "karnataka" --district "mysore" --crop "rice"
 ```
 
-## Basic UI
+3. Infer from `State + District + Crop`:
 
 ```powershell
-streamlit run ui_app.py
+python run_infer.py
 ```
 
-Then open the shown local URL in your browser, enter:
-- State
-- District
-- Crop
+4. Calculate metrics and plots:
 
-The UI will show risk prediction, confidence, inferred fields, reasons, and precautions.
-You can choose `Dropdown` or `Manual` input mode and optionally override inferred season/soil values.
-
-Artifacts are saved to `models/tabnet/`.
-
-## API-style Input (minimal)
-
-Minimum input:
-
-```json
-{
-  "location": { "state": "karnataka", "district": "mysore" },
-  "crop_type": "rice"
-}
+```powershell
+python -u calculate_metrics.py
 ```
 
-You can still optionally pass `season` or `soil` values to override inferred defaults.
+5. Launch UI:
 
-## Full API-style Input
-
-`predict_from_api_payload(payload)` expects:
-
-```json
-{
-  "location": { "state": "karnataka", "district": "mysore" },
-  "crop_type": "rice",
-  "season": "kharif",
-  "soil": { "n": 1.1, "p": 0.95, "k": 1.05, "ph": 6.4, "soil_fertility": 1.0 }
-}
+```powershell
+python -m streamlit run ui_app.py
 ```
 
-If any soil/production fields are missing, the preprocessor infers fallback values using historical medians from the same district/state.
-If `season` is missing, it is inferred from historical mode for `(state, district, crop)` with fallbacks.
+## Model Artifacts
+
+- model: `models/tab_transformer/crop_risk_tab_transformer.pt`
+- preprocessor: `models/tab_transformer/preprocessor.pkl`
+- training metrics: `models/tab_transformer/metrics.json`
+- eval metrics: `outputs/performance_metrics.json`
+- eval plots: `outputs/metrics_plots/`
+
+## Features Used
+
+- categorical: `state, district, season, crop`
+- numerical: `year, area, production, yield_log, n, p, k, ph, soil_fertility`
+
+## Explainability
+
+The system returns dynamic local explanations using perturbation-based attribution:
+
+- influential features
+- reference values and sources
+- influence percentage and direction
+- precautions linked to top contributing factors

@@ -1,0 +1,58 @@
+{
+  "accuracy": 0.996104253562279,
+  "test_loss": 0.013625825820390576,
+  "classification_report": {
+    "0": {
+      "precision": 0.99962441314554,
+      "recall": 0.9947053693783481,
+      "f1-score": 0.9971588248150114,
+      "support": 16054.0
+    },
+    "1": {
+      "precision": 0.9913160079177575,
+      "recall": 0.9969177422461953,
+      "f1-score": 0.9941089837997055,
+      "support": 15573.0
+    },
+    "2": {
+      "precision": 0.9973068291118948,
+      "recall": 0.9967316072801846,
+      "f1-score": 0.9970191352286932,
+      "support": 15604.0
+    },
+    "accuracy": 0.996104253562279,
+    "macro avg": {
+      "precision": 0.9960824167250641,
+      "recall": 0.9961182396349093,
+      "f1-score": 0.9960956479478034,
+      "support": 47231.0
+    },
+    "weighted avg": {
+      "precision": 0.9961192920201509,
+      "recall": 0.996104253562279,
+      "f1-score": 0.9961070814592436,
+      "support": 47231.0
+    }
+  },
+  "classes": {
+    "0": 0,
+    "1": 1,
+    "2": 2
+  },
+  "features": [
+    "state",
+    "district",
+    "season",
+    "crop",
+    "year",
+    "area",
+    "production",
+    "yield_log",
+    "n",
+    "p",
+    "k",
+    "ph",
+    "soil_fertility"
+  ],
+  "model": "TabTransformer"
+}
